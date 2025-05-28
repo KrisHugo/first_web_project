@@ -1,5 +1,5 @@
 <template>
-    <div class="message-board">
+    <div class="message-board" v-if="currentUser">
         <!-- 输入框 -->
         <form @submit.prevent="submitMessage" class="message-form">
             <input v-model="newMessage" placeholder="写下你的想法..." class="input-field" required />
@@ -7,20 +7,24 @@
         </form>
 
         <!-- 留言列表（PC 多列布局） -->
-        <div v-if="isLoading" class="loading">加载中...</div>
-        <div v-else class="message-grid">
-            <div v-for="message in messages" :key="message.id" class="message-card">
-                <p class="message-content">{{ message.content }}</p>
-                <span class="message-time">{{ formatTime(message.created_at) }}</span>
-            </div>
+        <div v-if="isLoading">加载中...</div>
+        <div v-else>
+            <MessageCard v-for="msg in messages" :key="msg.id" :message="msg" :currentUser="currentUser"
+                @delete="deleteMessage(msg.id)" />
         </div>
     </div>
 </template>
 
 <script>
+import { useAuthStore } from '@/stores/authStore'
 import axios from 'axios'
+import MessageCard from './MessageCard.vue'
 
 export default {
+    name: 'MessageBoard',
+    components: {
+        MessageCard
+    },
     data() {
         return {
             isLoading: false,
@@ -31,12 +35,21 @@ export default {
     },
     mounted() {
         this.fetchMessages()  // 组件加载时获取留言
+    }, 
+    computed: {
+        currentUser() {
+            return useAuthStore().user
+        }
     },
     methods: {
         async fetchMessages() {
             this.isLoading = true;
             try {
-                const response = await axios.get('http://localhost:5000/api/messages')
+                const response = await axios.get('/api/messages', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                })
                 this.messages = response.data
             } catch (error) {
                 console.error('获取留言失败:', error)
@@ -46,14 +59,26 @@ export default {
         },
         async submitMessage() {
             try {
-                await axios.post('http://localhost:5000/api/messages', {
-                    content: this.newMessage
-                })
+                await axios.post('/api/messages',
+                    {
+                        content: this.newMessage
+                    },
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                    })
                 this.newMessage = ''  // 清空输入框
                 this.fetchMessages()  // 重新加载留言
             } catch (error) {
                 console.error('提交留言失败:', error)
             }
+        },
+        async deleteMessage(id) {
+            await axios.delete(`/api/messages/${id}`, {
+                headers: { Authorization: `Bearer ${useAuthStore().token}` }
+            })
+            this.fetchMessages()
         },
         formatTime(timestamp) {
             return new Date(timestamp).toLocaleString()  // 格式化时间

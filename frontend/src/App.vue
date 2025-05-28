@@ -11,8 +11,22 @@
 
     <!-- 主内容区：根据登录状态切换显示 -->
     <main class="app-main">
-      <Login v-if="!isLoggedIn" @login-success="handleLoginSuccess" />
-      <MessageBoard v-else ref="messageBoard" :key="isLoggedIn" />
+      <div class="background" :class="showRegister ? 'login' : 'register'"></div>
+      <div class="auth-outer" v-if="!isLoggedIn">
+        <div class="auth-inner">
+
+          <TransitionGroup name="slide-fade" mode="out-in">
+            <div class="form-container" :key="showRegister ? 'login' : 'register'">
+              <Register v-if="showRegister" @register-success="handleRegistrationSuccess"
+                @switch-to-login="showRegister = false" />
+              <Login v-else @login-success="handleLoginSuccess"
+                @switch-to-register="showRegister = true" />
+            </div>
+
+          </TransitionGroup>
+        </div>
+      </div>
+      <MessageBoard ref="messageBoard" />
     </main>
 
     <!-- 页脚 -->
@@ -21,41 +35,54 @@
     </footer>
   </div>
 </template>
-<script>
+<script lang="ts">
+import Register from './components/Register.vue';
 import Login from './components/Login.vue';
 import MessageBoard from './components/MessageBoard.vue';
+// import { useAuthStore } from './stores/authStore';
+import { useAuthStore } from './stores/authStore'; // 确保路径正确
 
 export default {
-  components: { Login, MessageBoard },
+  name: 'App',
+  components: { Login, Register, MessageBoard },
   data() {
     return {
       isLoggedIn: false,  // 初始未登录
+      showRegister: false, // 控制注册表单显示
       username: ''        // 存储登录用户名
     };
   },
   methods: {
     // 处理登录成功事件（由 Login 组件触发）
-    async handleLoginSuccess(token, username) {
-      this.isLoggedIn = true;
-      this.username = username;
-      localStorage.setItem('token', token);
-      console.log("登录成功，尝试刷新！");
-      
-      await this.$nextTick(); // 确保子组件已挂载
-      this.$refs.messageBoard.fetchMessages(); // 手动触发刷新
+    handleLoginSuccess(res: any) {
+
+      const userStore = useAuthStore();
+      userStore.updateUserInfo(res);
+      this.isLoggedIn = userStore.isLoggedIn();
+      this.username = userStore.user.username; // 从 store 获取用户名
+      const board = this.$refs.messageBoard as InstanceType<typeof MessageBoard>;
+      board.fetchMessages(); // 刷新留言列表
+    },
+    handleRegistrationSuccess() {
+      this.showRegister = false;
+      alert('注册成功！请登录');
     },
     // 退出登录
     logout() {
+
+      const userStore = useAuthStore();
       this.isLoggedIn = false;
       this.username = '';
-      localStorage.removeItem('token');  // 清除 token
+      // 清除本地存储的 token 和用户信息
+      userStore.clearUserInfo();
     }
   },
   mounted() {
-    // 检查本地是否有 token（自动登录）
-    const token = localStorage.getItem('token');
-    if (token) {
+
+    const userStore = useAuthStore();
+    if (userStore.isLoggedIn()) {
       this.isLoggedIn = true;
+      this.username = userStore.user.username; // 从 store 获取用户名
       // 这里可以调用 API 验证 token 有效性
     }
   }
@@ -65,14 +92,18 @@ export default {
 <style scoped>
 /* 全局容器 */
 .app-container {
+  width: 100vw;
   min-height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  background-color: #f8f9fa;
+  /* background-color: #f8f9fa; */
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0 auto;
   width: 100%;
   /* max-width: 1400px; 控制整体宽度 */
+  justify-content: center;
+  position: relative;
 }
 
 /* 导航栏样式 */
@@ -105,9 +136,17 @@ export default {
 /* 主内容区 */
 .app-main {
   flex: 1;
-  width: 90%; /* 内容区稍窄于外层 */
+  width: 90%;
+  /* 内容区稍窄于外层 */
   margin: 0 auto;
-  padding: 0 20px; /* 左右留白 */
+  padding: 0 20px;
+  /* position: relative; */
+  /* 左右留白 */
+  min-height: 400px;
+  overflow: hidden;
+  /* 根据内容高度调整 */
+  max-width: 100%;
+  object-fit: cover;
 }
 
 /* 页脚样式 */
@@ -132,13 +171,16 @@ export default {
 }
 
 .app-header {
-  position: relative;  /* 让 logout-btn 相对此定位 */
+  position: relative;
+  /* 让 logout-btn 相对此定位 */
 }
 
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
-  .header-content, .app-main {
+
+  .header-content,
+  .app-main {
     max-width: 1000px;
   }
 }
@@ -147,8 +189,82 @@ export default {
   .app-title {
     font-size: 2rem;
   }
+
   .app-main {
     padding: 0 1rem;
   }
+}
+
+
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 50%, #4facfe 100%);
+  transition: transform 0.6s ease;
+  z-index: -1;
+  margin: 0;
+  padding: 0;
+}
+
+.background.login {
+  transform: translateX(0) skewY(0deg);
+}
+
+.background.register {
+  transform: translateX(-50%) skewY(5deg);
+}
+
+
+/* 添加至你的全局样式文件或组件内 */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.5s cubic-bezier(0.55, 0, 0.1, 1);
+  transform-style: preserve-3d;
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  /* width: 100%; */
+  max-width: 400px;
+  will-change: transform, opacity;
+  
+}
+
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateX(30px) rotateY(90deg);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-30px) rotateY(-90deg);
+}
+
+.form-container{
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+/* 修复后的样式 */
+.auth-outer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.auth-inner {
+  position: relative;
+  width: 100%;
+  max-width: 400px; /* 表单设计宽度 */
+}
+
+.auth-container {
+  position: relative;
+  min-height: 400px;
+  /* 根据内容高度调整 */
+  overflow: hidden;
 }
 </style>

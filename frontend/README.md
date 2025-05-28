@@ -2,6 +2,33 @@
 
 本项目基于 [Vue.js](https://vuejs.org/) 构建，旨在展示 Vue 在前端开发中的高效与便捷。通过该项目，您可以了解 Vue 的基本用法及其在实际开发中的应用场景。
 
+## 结构
+frontend/
+├── public/                  # 静态资源
+├── src/
+│   ├── api/                 # API请求封装
+│   │   ├── index.ts         # Axios全局配置
+│   │   ├── auth.ts          # 认证相关API
+│   │   └── user.ts          # 用户相关API
+│   │
+│   ├── assets/              # 静态资源
+│   ├── components/          # 公共组件
+│   ├── composables/         # 组合式函数
+│   ├── stores/              # Pinia状态管理
+│   │   ├── index.ts         # Pinia初始化
+│   │   └── user.ts          # 用户状态
+│   │
+│   ├── router/              # 路由配置
+│   ├── utils/               # 工具函数
+│   ├── views/               # 页面组件
+│   ├── App.vue
+│   └── main.ts
+│
+├── .env.development         # 开发环境变量
+├── .env.production          # 生产环境变量
+├── vite.config.ts           # Vite配置
+└── package.json
+
 ## Vue 简介
 
 Vue 是一款流行的渐进式 JavaScript 框架，专注于构建用户界面。它采用响应式的数据绑定和组件化开发模式，极大提升了开发效率。
