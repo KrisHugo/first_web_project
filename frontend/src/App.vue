@@ -31,7 +31,7 @@
 
     <!-- 页脚 -->
     <footer class="app-footer">
-      <p>© 2023 留言板</p>
+      <p>版权所有© 2025 KrisHugo</p>
     </footer>
   </div>
 </template>
